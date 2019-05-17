@@ -6,8 +6,7 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.support.design.widget.FloatingActionButton
 import android.support.v7.app.AlertDialog
-import android.view.LayoutInflater
-import android.view.View
+import android.view.*
 import android.widget.AdapterView
 import android.widget.EditText
 import android.widget.ListView
@@ -50,7 +49,7 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemClickListener {
         adapter = BoardAdapter(this,boards,R.layout.list_view_board_item)
         listView = findViewById(R.id.listViewBoards)
         listView!!.adapter = adapter
-
+        listView!!.setOnItemClickListener(this)
 
 
         fab = findViewById(R.id.fabAddBoard)
@@ -60,6 +59,14 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemClickListener {
         fab!!.setOnClickListener {
             showAlertForCreatingBoard("Add New Board", "Type a name for your new board")
         }
+
+
+        //para borrar todos los datos de realm
+     /* realm!!.beginTransaction()
+        realm!!.deleteAll()
+        realm!!.commitTransaction()*/
+
+        registerForContextMenu(listView!!)
 
     }
 
@@ -75,6 +82,25 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemClickListener {
         realm!!.beginTransaction()
         var board  = Board(boardName)
         realm!!.copyToRealm(board)
+        realm!!.commitTransaction()
+    }
+
+    fun deleteBoard(board: Board){
+        realm!!.beginTransaction()
+        board.deleteFromRealm()
+        realm!!.commitTransaction()
+    }
+
+    fun editBoard(newname: String?, board:Board?){
+        realm!!.beginTransaction()
+        board!!.title = newname!!
+        realm!!.copyToRealmOrUpdate(board)
+        realm!!.commitTransaction()
+    }
+
+    fun deleteAll(){
+        realm!!.beginTransaction()
+        realm!!.deleteAll()
         realm!!.commitTransaction()
     }
 
@@ -108,5 +134,89 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemClickListener {
     }
 
 
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_board_activity,menu)
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem?): Boolean {
+
+        when(item!!.itemId){
+            R.id.delete_all ->{
+
+                deleteAll()
+
+                return true
+            }else ->{
+                return true
+            }
+
+        }
+
+
+    }
+
+
+    override fun onCreateContextMenu(menu: ContextMenu?, v: View?, menuInfo: ContextMenu.ContextMenuInfo?) {
+
+        var info: AdapterView.AdapterContextMenuInfo = menuInfo as AdapterView.AdapterContextMenuInfo
+        menu!!.setHeaderTitle(boards!![info.position]!!.title)
+
+        menuInflater.inflate(R.menu.context_menu_board_activity,menu)
+
+    }
+
+    override fun onContextItemSelected(item: MenuItem?): Boolean {
+        var info: AdapterView.AdapterContextMenuInfo = item!!.menuInfo as AdapterView.AdapterContextMenuInfo
+       when(item!!.itemId){
+           R.id.delete_board ->{
+               deleteBoard(boards!![info.position]!!)
+
+                return true
+           } R.id.edit_board ->{
+
+                 showAlertForEditinBoard("Edit board", "Change the name of board", boards!![info.position]!!)
+                 return true
+          }
+           else ->{
+                return true
+           }
+       }
+    }
+
+
+    private fun showAlertForEditinBoard(title: String?, message: String?, board: Board?){
+        var builder : AlertDialog.Builder = AlertDialog.Builder(this)
+
+
+        if(title != null && title != "")builder.setTitle(title)
+        if(message != null && message != "")builder.setMessage(message)
+
+
+        var v: View = LayoutInflater.from(this).inflate(R.layout.dialog_create_board, null)
+
+        builder.setView(v)
+
+        var input: EditText = v.findViewById(R.id.edTextNewBoard)
+        input.setText(board!!.title)
+
+        builder.setPositiveButton("Save"){ dialog, which ->
+            var boardName = input.text.toString().trim()
+            if(boardName.length == 0){
+                Toast.makeText(applicationContext,"El nombre es requerido length 0",Toast.LENGTH_SHORT).show()
+            } else if(boardName.equals(board!!.title)){
+
+                Toast.makeText(applicationContext,"El nombre es igual",Toast.LENGTH_SHORT).show()
+                createNewBoard(boardName)
+            }else{
+                editBoard(boardName, board)
+            }
+        }
+
+        var dialog: AlertDialog = builder.create()
+        dialog.show()
+
+
+    }
 
 }
